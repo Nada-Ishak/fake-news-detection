@@ -1,2 +1,10 @@
 pandas
 numpy
+nltk
+scikit-learn
+matplotlib
+seaborn
+joblib
+kagglehub
+torch
+transformers
