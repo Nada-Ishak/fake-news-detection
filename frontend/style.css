@@ -1,0 +1,375 @@
+/* ============================================================
+   Design tokens
+   ============================================================ */
+:root {
+  --paper:        #E7E3DA;
+  --paper-raised:  #F1EEE6;
+  --ink:           #1F2A24;
+  --ink-soft:      #4B5750;
+  --line:          #C9C3B3;
+
+  --real-blue:     #2954A5;
+  --real-blue-deep:#1C3B79;
+  --fake-red:      #B23A2E;
+  --fake-red-deep: #7C2620;
+  --amber:         #C98A2C;
+
+  --font-display: 'Oswald', sans-serif;
+  --font-body:    'Source Serif 4', serif;
+  --font-mono:    'IBM Plex Mono', monospace;
+
+  --radius: 2px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+:focus-visible {
+  outline: 2px solid var(--real-blue);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================
+   Ticker
+   ============================================================ */
+.ticker {
+  background: var(--ink);
+  color: var(--paper);
+  overflow: hidden;
+  white-space: nowrap;
+  border-bottom: 3px solid var(--amber);
+}
+
+.ticker__track {
+  display: inline-flex;
+  gap: 0.6em;
+  padding: 0.5rem 0;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  animation: ticker-scroll 32s linear infinite;
+}
+
+.ticker__track span { flex-shrink: 0; }
+
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* ============================================================
+   Masthead
+   ============================================================ */
+.masthead {
+  text-align: center;
+  padding: 2.75rem 1.5rem 2rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.masthead__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 0.6rem;
+}
+
+.masthead__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.8rem, 4vw, 2.75rem);
+  letter-spacing: -0.01em;
+  margin: 0 0 0.6rem;
+}
+
+.masthead__sub {
+  font-style: italic;
+  color: var(--ink-soft);
+  max-width: 38rem;
+  margin: 0 auto;
+  font-size: 1.02rem;
+}
+
+/* ============================================================
+   Case layout
+   ============================================================ */
+.case {
+  flex: 1;
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 3rem;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .case { grid-template-columns: 1fr; }
+}
+
+.exhibit__label {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 1.1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 2px solid var(--ink);
+}
+
+/* ---- Exhibit (input) panel ---- */
+.exhibit {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+}
+
+.field {
+  display: block;
+  margin-bottom: 1.1rem;
+}
+
+.field__label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 0.4rem;
+}
+
+.field__label em { font-style: italic; text-transform: none; }
+
+input[type="text"], textarea {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.65rem 0.8rem;
+  resize: vertical;
+}
+
+input[type="text"]:focus, textarea:focus {
+  border-color: var(--real-blue);
+}
+
+.exhibit__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.char-count {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.verify-btn {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.92rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--paper);
+  background: var(--ink);
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.75rem 1.4rem;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.verify-btn:hover { background: var(--real-blue-deep); }
+.verify-btn:active { transform: translateY(1px); }
+.verify-btn:disabled { background: var(--ink-soft); cursor: not-allowed; }
+
+.error-msg {
+  margin-top: 0.9rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--fake-red-deep);
+}
+
+/* ---- Verdict panel ---- */
+.verdict-panel {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  min-height: 22rem;
+}
+
+.verdict-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 17rem;
+  text-align: center;
+}
+
+/* Idle state */
+.idle-state__mark {
+  font-size: 2.2rem;
+  color: var(--line);
+  border: 2px dashed var(--line);
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+
+.idle-state p, .loading-state p {
+  color: var(--ink-soft);
+  font-style: italic;
+  max-width: 18rem;
+  margin: 0 auto;
+}
+
+/* Loading state */
+.loading-state__bars {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+  height: 2rem;
+  align-items: flex-end;
+}
+
+.loading-state__bars span {
+  width: 0.4rem;
+  background: var(--amber);
+  animation: bar-bounce 1s ease-in-out infinite;
+}
+
+.loading-state__bars span:nth-child(1) { animation-delay: 0s; }
+.loading-state__bars span:nth-child(2) { animation-delay: 0.1s; }
+.loading-state__bars span:nth-child(3) { animation-delay: 0.2s; }
+.loading-state__bars span:nth-child(4) { animation-delay: 0.3s; }
+.loading-state__bars span:nth-child(5) { animation-delay: 0.4s; }
+
+@keyframes bar-bounce {
+  0%, 100% { height: 0.5rem; }
+  50% { height: 2rem; }
+}
+
+/* Result state: the stamp signature element */
+.stamp {
+  --stamp-color: var(--real-blue);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2.6rem;
+  letter-spacing: 0.08em;
+  color: var(--stamp-color);
+  border: 0.4rem solid var(--stamp-color);
+  border-radius: 10px;
+  padding: 0.4rem 1.6rem;
+  transform: rotate(-8deg) scale(1.6);
+  opacity: 0;
+  text-shadow: 0 0 1px var(--stamp-color);
+  box-shadow: 0 0 0 2px var(--stamp-color) inset;
+  filter: blur(2px);
+  animation: stamp-down 0.45s cubic-bezier(.2,1.4,.4,1) forwards;
+  margin-bottom: 1.4rem;
+}
+
+.stamp.is-fake { --stamp-color: var(--fake-red); }
+
+@keyframes stamp-down {
+  0%   { opacity: 0; transform: rotate(-8deg) scale(2.2); filter: blur(6px); }
+  60%  { opacity: 1; transform: rotate(-8deg) scale(0.92); filter: blur(0); }
+  100% { opacity: 1; transform: rotate(-8deg) scale(1); filter: blur(0); }
+}
+
+.verdict-meta {
+  font-family: var(--font-mono);
+  margin: 0 0 1rem;
+}
+
+.verdict-meta__row {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  font-size: 0.85rem;
+}
+
+.verdict-meta__row dt { color: var(--ink-soft); }
+.verdict-meta__row dd { margin: 0; font-weight: 500; }
+
+.probability-bar {
+  width: 100%;
+  max-width: 20rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  overflow: hidden;
+  display: flex;
+  border: 1px solid var(--line);
+}
+
+.probability-bar__segment--fake { background: var(--fake-red); }
+.probability-bar__segment--real { background: var(--real-blue); }
+
+.probability-bar__labels {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 20rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+  margin-top: 0.4rem;
+}
+
+/* ============================================================
+   Footer
+   ============================================================ */
+.fine-print {
+  text-align: center;
+  padding: 1.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.fine-print p {
+  max-width: 36rem;
+  margin: 0 auto;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
