@@ -1,10 +1,16 @@
-// Point this at wherever the FastAPI backend is running.
 const API_BASE_URL = "http://localhost:8000";
+
+/* =========================
+  Elements
+========================= */
 
 const titleInput = document.getElementById("title-input");
 const textInput = document.getElementById("text-input");
+
 const charCount = document.getElementById("char-count");
+
 const verifyBtn = document.getElementById("verify-btn");
+
 const errorMsg = document.getElementById("error-msg");
 
 const idleState = document.getElementById("idle-state");
@@ -13,105 +19,379 @@ const resultState = document.getElementById("result-state");
 
 const stamp = document.getElementById("stamp");
 const stampText = document.getElementById("stamp-text");
-const confidenceValue = document.getElementById("confidence-value");
-const probFake = document.getElementById("prob-fake");
-const probReal = document.getElementById("prob-real");
-const fakePct = document.getElementById("fake-pct");
-const realPct = document.getElementById("real-pct");
-const caseNumber = document.getElementById("case-number");
 
-// Cosmetic: a fresh "case number" per visit, like a new file being opened.
-caseNumber.textContent = String(Math.floor(100 + Math.random() * 900));
+const confidenceValue =
+  document.getElementById("confidence-value");
 
-textInput.addEventListener("input", () => {
-  const n = textInput.value.length;
-  charCount.textContent = `${n.toLocaleString()} character${n === 1 ? "" : "s"}`;
-});
+const probFake =
+  document.getElementById("prob-fake");
+
+const probReal =
+  document.getElementById("prob-real");
+
+const fakePct =
+  document.getElementById("fake-pct");
+
+const realPct =
+  document.getElementById("real-pct");
+
+const caseNumber =
+  document.getElementById("case-number");
+
+const recommendationText =
+  document.querySelector(".tips-card p");
+
+/* =========================
+  Init
+========================= */
+
+caseNumber.textContent =
+  "#" +
+  Math.floor(
+    1000 + Math.random() * 9000
+  );
+
+showState("idle");
+
+/* =========================
+  Character Counter
+========================= */
+
+textInput.addEventListener(
+  "input",
+  () => {
+
+    const count =
+      textInput.value.length;
+
+    charCount.textContent =
+      `${count.toLocaleString()} characters`;
+
+  }
+);
+
+/* =========================
+  State Handling
+========================= */
 
 function showState(state) {
-  idleState.hidden = state !== "idle";
-  loadingState.hidden = state !== "loading";
-  resultState.hidden = state !== "result";
+
+  idleState.hidden =
+    state !== "idle";
+
+  loadingState.hidden =
+    state !== "loading";
+
+  resultState.hidden =
+    state !== "result";
 }
 
 function setError(message) {
+
   if (!message) {
+
     errorMsg.hidden = true;
     errorMsg.textContent = "";
+
     return;
   }
+
   errorMsg.hidden = false;
-  errorMsg.textContent = message;
+
+  errorMsg.textContent =
+    message;
 }
 
+/* =========================
+  Toast Notifications
+========================= */
+
+function showToast(
+  message,
+  type = "success"
+) {
+
+  const toast =
+    document.createElement("div");
+
+  toast.className =
+    `toast ${type}`;
+
+  toast.textContent =
+    message;
+
+  document.body.appendChild(
+    toast
+  );
+
+  requestAnimationFrame(() => {
+    toast.classList.add("show");
+  });
+
+  setTimeout(() => {
+
+    toast.classList.remove(
+      "show"
+    );
+
+    setTimeout(() => {
+
+      toast.remove();
+
+    }, 300);
+
+  }, 3000);
+}
+
+/* =========================
+  Recommendation Text
+========================= */
+
+function updateRecommendation(
+  isFake,
+  confidence
+) {
+
+  const percentage =
+    Math.round(
+      confidence * 100
+    );
+
+  if (isFake) {
+
+    recommendationText.textContent =
+      `The article shows suspicious patterns. Confidence: ${percentage}%. Verify information through trusted news sources before sharing.`;
+
+  } else {
+
+    recommendationText.textContent =
+      `The article appears credible according to the model. Confidence: ${percentage}%. Continue validating information using reliable references.`;
+  }
+}
+
+/* =========================
+  Button Loading
+========================= */
+
+function setButtonLoading(
+  loading
+) {
+
+  if (loading) {
+
+    verifyBtn.disabled = true;
+
+    verifyBtn.dataset.original =
+      verifyBtn.textContent;
+
+    verifyBtn.textContent =
+      "Analyzing...";
+
+  } else {
+
+    verifyBtn.disabled = false;
+
+    verifyBtn.textContent =
+      verifyBtn.dataset.original ||
+      "Analyze Article";
+  }
+}
+
+/* =========================
+  Result Rendering
+========================= */
+
+function renderResult(data) {
+
+  const isFake =
+    data.is_fake;
+
+  const confidence =
+    Math.round(
+      data.confidence * 100
+    );
+
+  const fakeProbability =
+    Math.round(
+      data.fake_probability * 100
+    );
+
+  const realProbability =
+    Math.round(
+      data.real_probability * 100
+    );
+
+  stamp.classList.remove(
+    "is-fake"
+  );
+
+  void stamp.offsetWidth;
+
+  stampText.textContent =
+    isFake
+      ? "FAKE"
+      : "REAL";
+
+  if (isFake) {
+
+    stamp.classList.add(
+      "is-fake"
+    );
+  }
+
+  confidenceValue.textContent =
+    confidence + "%";
+
+  fakePct.textContent =
+    fakeProbability + "%";
+
+  realPct.textContent =
+    realProbability + "%";
+
+  probFake.style.width =
+    fakeProbability + "%";
+
+  probReal.style.width =
+    realProbability + "%";
+
+  updateRecommendation(
+    isFake,
+    data.confidence
+  );
+
+  showState("result");
+
+  showToast(
+    "Analysis completed successfully",
+    "success"
+  );
+}
+
+/* =========================
+   Verification
+========================= */
+
 async function runVerification() {
-  const text = textInput.value.trim();
+
+  const text =
+    textInput.value.trim();
+
   setError(null);
 
   if (!text) {
-    setError("Add the article body before running a verification.");
+
+    setError(
+      "Please enter article content before analysis."
+    );
+
     textInput.focus();
+
     return;
   }
 
-  verifyBtn.disabled = true;
   showState("loading");
 
+  setButtonLoading(true);
+
   try {
-    const response = await fetch(`${API_BASE_URL}/predict`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: titleInput.value.trim(), text }),
-    });
+
+    const response =
+      await fetch(
+        `${API_BASE_URL}/predict`,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+
+            title:
+              titleInput.value.trim(),
+
+            text,
+          }),
+        }
+      );
 
     if (!response.ok) {
-      const detail = await response.json().catch(() => ({}));
-      throw new Error(detail.detail || `Server responded with ${response.status}`);
+
+      const detail =
+        await response
+          .json()
+          .catch(() => ({}));
+
+      throw new Error(
+        detail.detail ||
+        `Server Error (${response.status})`
+      );
     }
 
-    const data = await response.json();
+    const data =
+      await response.json();
+
     renderResult(data);
-  } catch (err) {
+
+  } catch (error) {
+
+    console.error(error);
+
     showState("idle");
+
     setError(
-      err.message === "Failed to fetch"
-        ? "Couldn't reach the verification server. Is the backend running at " + API_BASE_URL + "?"
-        : err.message
+      error.message ===
+      "Failed to fetch"
+        ? "Unable to connect to backend server."
+        : error.message
     );
+
+    showToast(
+      "Analysis failed",
+      "error"
+    );
+
   } finally {
-    verifyBtn.disabled = false;
+
+    setButtonLoading(false);
   }
 }
 
-function renderResult(data) {
-  const isFake = data.is_fake;
+/* =========================
+  Events
+========================= */
 
-  // Restart the stamp-down animation each time.
-  stamp.classList.remove("is-fake");
-  stamp.style.animation = "none";
-  // eslint-disable-next-line no-unused-expressions
-  stamp.offsetHeight; // force reflow so the animation restarts
-  stamp.style.animation = "";
+verifyBtn.addEventListener(
+  "click",
+  runVerification
+);
 
-  stampText.textContent = isFake ? "FAKE" : "REAL";
-  stamp.classList.toggle("is-fake", isFake);
+textInput.addEventListener(
+  "keydown",
+  (e) => {
 
-  confidenceValue.textContent = `${Math.round(data.confidence * 100)}%`;
+    if (
+      (e.ctrlKey ||
+      e.metaKey) &&
+      e.key === "Enter"
+    ) {
 
-  const fp = Math.round(data.fake_probability * 100);
-  const rp = Math.round(data.real_probability * 100);
-  probFake.style.width = `${fp}%`;
-  probReal.style.width = `${rp}%`;
-  fakePct.textContent = `${fp}%`;
-  realPct.textContent = `${rp}%`;
-
-  showState("result");
-}
-
-verifyBtn.addEventListener("click", runVerification);
-
-textInput.addEventListener("keydown", (e) => {
-  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-    runVerification();
+      runVerification();
+    }
   }
-});
+);
+
+/* =========================
+  Entrance Animation
+========================= */
+
+window.addEventListener(
+  "load",
+  () => {
+
+    document.body.classList.add(
+      "loaded"
+    );
+  }
+);

@@ -1,116 +1,276 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wire Desk — Fake News Verification</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+  <title>Fake News Detector AI</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
   <link
-    href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet"
-  />
-  <link rel="stylesheet" href="style.css" />
+  >
+
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <div class="ticker" aria-hidden="true">
-    <div class="ticker__track">
-      <span>WIRE DESK — EVIDENCE INTAKE TERMINAL</span>
-      <span>•</span>
-      <span>MODEL: TF-IDF + CLASSIFIER, TRAINED ON 70K+ ARTICLES</span>
-      <span>•</span>
-      <span>OUTPUT IS A PROBABILISTIC ESTIMATE, NOT A FACT RULING</span>
-      <span>•</span>
-      <span>WIRE DESK — EVIDENCE INTAKE TERMINAL</span>
-      <span>•</span>
-      <span>MODEL: TF-IDF + CLASSIFIER, TRAINED ON 70K+ ARTICLES</span>
-      <span>•</span>
-      <span>OUTPUT IS A PROBABILISTIC ESTIMATE, NOT A FACT RULING</span>
-      <span>•</span>
-    </div>
+  <!-- Background -->
+  <div class="bg-blur bg-blur-1"></div>
+  <div class="bg-blur bg-blur-2"></div>
+
+  <!-- Navbar -->
+<header class="navbar">
+
+  <div class="logo">
+    <div class="logo-icon">AI</div>
+    <span>Fake News Detector</span>
   </div>
 
-  <header class="masthead">
-    <p class="masthead__eyebrow">Case File No. <span id="case-number">001</span></p>
-    <h1 class="masthead__title">Fake News Verification Desk</h1>
-    <p class="masthead__sub">Submit an article below. The desk will weigh the evidence and stamp a verdict.</p>
-  </header>
+</header>
 
-  <main class="case">
+  <!-- Hero -->
+  <section class="hero">
 
-    <section class="exhibit" aria-labelledby="exhibit-heading">
-      <h2 id="exhibit-heading" class="exhibit__label">Exhibit A — Submitted Article</h2>
+    <div class="hero-badge">
+      AI Powered Verification
+    </div>
 
-      <label class="field">
-        <span class="field__label">Headline <em>(optional)</em></span>
-        <input id="title-input" type="text" placeholder="e.g. Senate passes new infrastructure bill" autocomplete="off" />
-      </label>
+    <h1>
+      Detect Fake News
+      <span>With Confidence</span>
+    </h1>
 
-      <label class="field">
-        <span class="field__label">Article body</span>
-        <textarea id="text-input" rows="11" placeholder="Paste the full article text here…"></textarea>
-      </label>
+    <p>
+      Analyze articles using machine learning and receive instant
+      credibility insights based on linguistic patterns and trained models.
+    </p>
 
-      <div class="exhibit__footer">
-        <span id="char-count" class="char-count">0 characters</span>
-        <button id="verify-btn" class="verify-btn" type="button">
-          <span class="verify-btn__label">Run Verification</span>
-        </button>
+  </section>
+
+  <!-- Main -->
+  <main class="dashboard">
+
+    <!-- LEFT -->
+    <section class="card input-card">
+
+      <div class="section-header">
+        <h2>Article Analysis</h2>
+        <span id="case-number" class="case-number">
+          #001
+        </span>
       </div>
 
-      <p id="error-msg" class="error-msg" role="alert" hidden></p>
+      <div class="form-group">
+
+        <label>
+          Headline
+        </label>
+
+        <input
+          id="title-input"
+          type="text"
+          placeholder="Enter article title..."
+        />
+
+      </div>
+
+      <div class="form-group">
+
+        <label>
+          Article Content
+        </label>
+
+        <textarea
+          id="text-input"
+          rows="12"
+          placeholder="Paste article text here..."
+        ></textarea>
+
+      </div>
+
+      <div class="input-footer">
+
+        <span
+          id="char-count"
+          class="char-count"
+        >
+          0 characters
+        </span>
+
+        <button
+          id="verify-btn"
+          class="verify-btn"
+        >
+          Analyze Article
+        </button>
+
+      </div>
+
+      <p
+        id="error-msg"
+        class="error-msg"
+        hidden
+      ></p>
+
     </section>
 
-    <section class="verdict-panel" aria-live="polite">
-      <h2 class="exhibit__label">Verdict</h2>
+    <!-- RIGHT -->
+    <section class="card result-card">
 
-      <div class="verdict-stage">
-        <div id="idle-state" class="idle-state">
-          <div class="idle-state__mark">＋</div>
-          <p>Awaiting evidence. Submit an article to begin verification.</p>
-        </div>
-
-        <div id="loading-state" class="loading-state" hidden>
-          <div class="loading-state__bars">
-            <span></span><span></span><span></span><span></span><span></span>
-          </div>
-          <p>Cross-referencing language patterns…</p>
-        </div>
-
-        <div id="result-state" class="result-state" hidden>
-          <div id="stamp" class="stamp">
-            <span id="stamp-text">REAL</span>
-          </div>
-
-          <dl class="verdict-meta">
-            <div class="verdict-meta__row">
-              <dt>Confidence</dt>
-              <dd id="confidence-value">—</dd>
-            </div>
-          </dl>
-
-          <div class="probability-bar" role="img" aria-label="Fake vs Real probability breakdown">
-            <div id="prob-fake" class="probability-bar__segment probability-bar__segment--fake"></div>
-            <div id="prob-real" class="probability-bar__segment probability-bar__segment--real"></div>
-          </div>
-          <div class="probability-bar__labels">
-            <span>Fake <span id="fake-pct">0%</span></span>
-            <span>Real <span id="real-pct">0%</span></span>
-          </div>
-        </div>
+      <div class="section-header">
+        <h2>AI Verdict</h2>
       </div>
+
+      <!-- IDLE -->
+      <div
+        id="idle-state"
+        class="state state-idle"
+      >
+
+        <div class="state-icon">
+          📰
+        </div>
+
+        <h3>
+          Ready To Analyze
+        </h3>
+
+        <p>
+          Submit an article and the AI will evaluate
+          its credibility.
+        </p>
+
+      </div>
+
+      <!-- LOADING -->
+      <div
+        id="loading-state"
+        class="state"
+        hidden
+      >
+
+        <div class="loader"></div>
+
+        <h3>
+          Analyzing Content
+        </h3>
+
+        <p>
+          Running machine learning verification...
+        </p>
+
+      </div>
+
+      <!-- RESULT -->
+      <div
+        id="result-state"
+        class="state"
+        hidden
+      >
+
+        <div
+          id="stamp"
+          class="result-badge"
+        >
+          <span id="stamp-text">
+            REAL
+          </span>
+        </div>
+
+        <div class="confidence-card">
+
+          <h4>
+            Confidence Score
+          </h4>
+
+          <div
+            id="confidence-value"
+            class="confidence-value"
+          >
+            0%
+          </div>
+
+        </div>
+
+        <div class="probability-section">
+
+          <div class="prob-header">
+
+            <span>
+              Fake
+            </span>
+
+            <span id="fake-pct">
+              0%
+            </span>
+
+          </div>
+
+          <div class="progress">
+
+            <div
+              id="prob-fake"
+              class="progress-fill fake"
+            ></div>
+
+          </div>
+
+          <div class="prob-header">
+
+            <span>
+              Real
+            </span>
+
+            <span id="real-pct">
+              0%
+            </span>
+
+          </div>
+
+          <div class="progress">
+
+            <div
+              id="prob-real"
+              class="progress-fill real"
+            ></div>
+
+          </div>
+
+        </div>
+
+        <div class="tips-card">
+
+          <h4>
+            Recommendation
+          </h4>
+
+          <p>
+            Always verify information using trusted
+            and official sources before sharing.
+          </p>
+
+        </div>
+
+      </div>
+
     </section>
 
   </main>
 
-  <footer class="fine-print">
+  <!-- Footer -->
+  <footer class="footer">
+
     <p>
-      This tool estimates likelihood from writing patterns in training data. It is not a fact-checking
-      authority and can be wrong — always verify claims against primary sources.
+      Fake News Detection System • Powered by Machine Learning
     </p>
+
   </footer>
 
   <script src="script.js"></script>
+
 </body>
 </html>
