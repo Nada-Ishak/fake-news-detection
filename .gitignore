@@ -1,10 +1,53 @@
-venv/
-.venv/
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Virtual Environments
+venv/
+.venv/
+env/
+
+# Jupyter
 .ipynb_checkpoints/
 
+# Dataset
 WELFake_Dataset.csv
+
+# ML Models
+ml/models/
 *.pkl
 *.joblib
 *.h5
+*.pt
+*.bin
+*.safetensors
+
+# Training Results
+results/
+checkpoints/
+logs/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# PyCharm
+.idea/
+
+# Environment Variables
+.env
+.env.*
+
+# Coverage
+.coverage
+htmlcov/
+
+# Build
+build/
+dist/
+*.egg-info/
