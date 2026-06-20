@@ -1,169 +1,147 @@
-"""
-Training pipeline for the Fake News Detection model.
-
-This is the same logic that was originally in the Jupyter notebook,
-reorganized into a runnable script:
-
-  1. Load the WELFake dataset
-  2. Clean it (dedupe, drop unused columns, build "content")
-  3. Preprocess text (lowercase, strip punctuation, remove stopwords, lemmatize)
-  4. TF-IDF vectorize
-  5. Train & compare several classifiers
-  6. Cross-validate the strongest model
-  7. Save evaluation plots
-  8. Persist the best model + vectorizer to ml/models/
-
-Run from the project root with:
-    python -m ml.train
-"""
-
+from pathlib import Path
+import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression, PassiveAggressiveClassifier
-from sklearn.metrics import (
-    accuracy_score,
-    classification_report,
-    f1_score,
-    precision_score,
-    recall_score,
-    roc_auc_score,
+from datasets import Dataset
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
+from transformers import (
+    DistilBertTokenizerFast,
+    DistilBertForSequenceClassification,
+    Trainer,
+    TrainingArguments,
 )
-from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
-from sklearn.naive_bayes import MultinomialNB
-from sklearn.pipeline import Pipeline
-from sklearn.svm import LinearSVC
-import joblib
 
-from ml import config
-from ml.evaluate import plot_confusion_matrix, plot_roc_curve
-from ml.preprocessing import build_content, clean_text
+BASE_DIR = Path(__file__).resolve().parents[1]
+DATA_PATH = BASE_DIR / "ml" / "data" / "WELFake_Dataset.csv"
+MODEL_DIR = BASE_DIR / "ml" / "models" / "distilbert_model"
+RESULTS_DIR = BASE_DIR / "results"
 
-
-def load_data() -> pd.DataFrame:
-    if not config.DATASET_PATH.exists():
-        raise FileNotFoundError(
-            f"Dataset not found at {config.DATASET_PATH}.\n"
-            f"Download WELFake_Dataset.csv and place it in {config.DATA_DIR}/ "
-            "(see ml/data/README.md)."
-        )
-    data = pd.read_csv(config.DATASET_PATH)
-    print(f"Loaded dataset: {data.shape}")
-    return data
+MODEL_DIR.mkdir(parents=True, exist_ok=True)
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def clean_dataframe(data: pd.DataFrame) -> pd.DataFrame:
-    data = data.drop_duplicates()
-    data = data.drop(columns=["subject", "date", "Unnamed: 0"], errors="ignore")
+def load_data():
+    if not DATA_PATH.exists():
+        raise FileNotFoundError(f"Dataset not found at: {DATA_PATH}")
 
-    data["content"] = data.apply(lambda row: build_content(row.get("title"), row.get("text")), axis=1)
+    df = pd.read_csv(DATA_PATH)
+    df = df[["title", "text", "label"]].copy()
 
-    print("Cleaning text (this can take a few minutes on the full dataset)...")
-    data["clean_content"] = data["content"].apply(clean_text)
+    df["title"] = df["title"].fillna("")
+    df["text"] = df["text"].fillna("")
 
-    # Drop rows that ended up empty after cleaning, and any missing labels
-    data = data.dropna(subset=["label"])
-    data = data[data["clean_content"].astype(str).str.strip().ne("")]
-    return data
+    df["text"] = (df["title"] + " " + df["text"]).str.strip()
+    df = df[["text", "label"]]
+
+    # Ensure labels are int
+    df["label"] = df["label"].astype(int)
+
+    print("Dataset shape:", df.shape)
+    print("Label distribution:")
+    print(df["label"].value_counts())
+
+    return df
 
 
-def vectorize(data: pd.DataFrame):
-    X_train_text, X_test_text, y_train, y_test = train_test_split(
-        data["clean_content"],
-        data["label"],
-        test_size=config.TEST_SIZE,
-        random_state=config.RANDOM_STATE,
-        stratify=data["label"],
+def compute_metrics(eval_pred):
+    logits, labels = eval_pred
+    preds = np.argmax(logits, axis=1)
+
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        labels, preds, average="weighted", zero_division=0
     )
+    acc = accuracy_score(labels, preds)
 
-    vectorizer = TfidfVectorizer(
-        max_features=config.TFIDF_MAX_FEATURES,
-        ngram_range=config.TFIDF_NGRAM_RANGE,
-    )
-    X_train = vectorizer.fit_transform(X_train_text)
-    X_test = vectorizer.transform(X_test_text)
-
-    print(f"Train shape: {X_train.shape}  Test shape: {X_test.shape}")
-    return vectorizer, X_train, X_test, y_train, y_test
-
-
-def train_and_compare(X_train, X_test, y_train, y_test):
-    models = {
-        "Logistic Regression": LogisticRegression(max_iter=1000),
-        "Multinomial Naive Bayes": MultinomialNB(),
-        "Linear SVC": LinearSVC(),
-        "Passive Aggressive": PassiveAggressiveClassifier(max_iter=1000, random_state=config.RANDOM_STATE),
-        "Random Forest": RandomForestClassifier(n_estimators=200, random_state=config.RANDOM_STATE, n_jobs=-1),
+    return {
+        "accuracy": acc,
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
     }
 
-    results = []
-    fitted_models = {}
 
-    for name, model in models.items():
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-
-        if hasattr(model, "predict_proba"):
-            y_scores = model.predict_proba(X_test)[:, 1]
-        else:
-            y_scores = model.decision_function(X_test)
-
-        results.append({
-            "Model": name,
-            "Accuracy": accuracy_score(y_test, y_pred),
-            "Precision": precision_score(y_test, y_pred, zero_division=0),
-            "Recall": recall_score(y_test, y_pred, zero_division=0),
-            "F1-Score": f1_score(y_test, y_pred, zero_division=0),
-            "ROC-AUC": roc_auc_score(y_test, y_scores),
-        })
-        fitted_models[name] = (model, y_pred, y_scores)
-        print(f"{name} done -> Accuracy: {results[-1]['Accuracy']:.4f}")
-
-    results_df = pd.DataFrame(results).sort_values("Accuracy", ascending=False).reset_index(drop=True)
-    print("\nModel Comparison:\n", results_df)
-    return results_df, fitted_models
-
-
-def cross_validate_best(data: pd.DataFrame) -> None:
-    """5-fold stratified CV for the Random Forest pipeline (text -> TF-IDF -> RF)."""
-    cv_pipeline = Pipeline([
-        ("tfidf", TfidfVectorizer(max_features=config.TFIDF_MAX_FEATURES, ngram_range=config.TFIDF_NGRAM_RANGE)),
-        ("rf", RandomForestClassifier(n_estimators=200, random_state=config.RANDOM_STATE, n_jobs=-1)),
-    ])
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=config.RANDOM_STATE)
-
-    print("\nRunning 5-fold cross-validation (Random Forest)...")
-    cv_scores = cross_val_score(
-        cv_pipeline, data["clean_content"], data["label"],
-        cv=cv, scoring="accuracy", n_jobs=1, error_score="raise",
-    )
-    print("Cross Validation Accuracy:", cv_scores)
-    print(f"Mean Accuracy: {cv_scores.mean():.4f}  Std: {cv_scores.std():.4f}")
-
-
+# Main Training
 def main():
-    data = load_data()
-    data = clean_dataframe(data)
-    vectorizer, X_train, X_test, y_train, y_test = vectorize(data)
-    results_df, fitted_models = train_and_compare(X_train, X_test, y_train, y_test)
+    df = load_data()
 
-    best_model_name = results_df.iloc[0]["Model"]
-    best_model, best_y_pred, best_y_scores = fitted_models[best_model_name]
+    train_df, test_df = train_test_split(
+        df,
+        test_size=0.2,
+        random_state=42,
+        stratify=df["label"],
+    )
 
-    print(f"\nBest Model: {best_model_name}")
-    print(classification_report(y_test, best_y_pred, target_names=config.LABEL_NAMES))
+    print("Train size:", len(train_df))
+    print("Test size:", len(test_df))
 
-    plot_confusion_matrix(y_test, best_y_pred, best_model_name, config.CONFUSION_MATRIX_PATH)
-    plot_roc_curve(y_test, best_y_scores, best_model_name, results_df.iloc[0]["ROC-AUC"], config.ROC_CURVE_PATH)
-    print(f"Saved plots to {config.REPORTS_DIR}/")
+    train_dataset = Dataset.from_pandas(train_df.reset_index(drop=True))
+    test_dataset = Dataset.from_pandas(test_df.reset_index(drop=True))
 
-    if config.RUN_CROSS_VALIDATION:
-        cross_validate_best(data)
+    tokenizer = DistilBertTokenizerFast.from_pretrained("distilbert-base-uncased")
 
-    joblib.dump(best_model, config.MODEL_PATH)
-    joblib.dump(vectorizer, config.VECTORIZER_PATH)
-    print(f"\nSaved '{best_model_name}' -> {config.MODEL_PATH}")
-    print(f"Saved TF-IDF vectorizer -> {config.VECTORIZER_PATH}")
+    def tokenize_function(examples):
+        return tokenizer(
+            examples["text"],
+            truncation=True,
+            padding="max_length",
+            max_length=256,
+        )
+
+    train_dataset = train_dataset.map(tokenize_function, batched=True)
+    test_dataset = test_dataset.map(tokenize_function, batched=True)
+
+    train_dataset = train_dataset.remove_columns(["text"])
+    test_dataset = test_dataset.remove_columns(["text"])
+
+    train_dataset.set_format("torch")
+    test_dataset.set_format("torch")
+
+    # Model
+    model = DistilBertForSequenceClassification.from_pretrained(
+        "distilbert-base-uncased",
+        num_labels=2,
+        id2label={0: "Real", 1: "Fake"},
+        label2id={"Real": 0, "Fake": 1},
+    )
+
+    # Training args
+    training_args = TrainingArguments(
+        output_dir=str(RESULTS_DIR),
+        eval_strategy="epoch",
+        save_strategy="epoch",
+        logging_strategy="epoch",
+        per_device_train_batch_size=8,
+        per_device_eval_batch_size=8,
+        num_train_epochs=3,
+        learning_rate=2e-5,
+        weight_decay=0.01,
+        load_best_model_at_end=True,
+        metric_for_best_model="accuracy",
+        save_total_limit=2,
+        report_to="none",
+    )
+
+    # Trainer
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=test_dataset,
+        tokenizer=tokenizer,
+        compute_metrics=compute_metrics,
+    )
+
+    trainer.train()
+
+    metrics = trainer.evaluate()
+    print("\nFinal Evaluation:")
+    for k, v in metrics.items():
+        print(f"{k}: {v}")
+
+    trainer.save_model(str(MODEL_DIR))
+    tokenizer.save_pretrained(str(MODEL_DIR))
+
+    print(f"\nModel and tokenizer saved to: {MODEL_DIR}")
 
 
 if __name__ == "__main__":

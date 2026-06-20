@@ -1,75 +1,69 @@
-"""
-Loads the trained TF-IDF vectorizer + classifier once at startup and
-exposes a single `predict()` function used by the FastAPI routes.
-
-Reuses the exact same cleaning logic from ml/preprocessing.py that was
-used during training, so inference matches training preprocessing 1:1.
-"""
-
-import sys
 from pathlib import Path
+from typing import Dict
 
-import joblib
+import torch
+from transformers import DistilBertForSequenceClassification, DistilBertTokenizerFast
 
-# Make the project root importable so we can reuse `ml.preprocessing`
-# and `ml.config` instead of duplicating the cleaning logic here.
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+# Root project path
+BASE_DIR = Path(__file__).resolve().parents[2]
+MODEL_DIR = BASE_DIR / "ml" / "models" / "distilbert_model"
 
-from ml import config  # noqa: E402
-from ml.preprocessing import preprocess_for_inference  # noqa: E402
-
-_model = None
-_vectorizer = None
-
-
-class ModelNotLoadedError(RuntimeError):
-    pass
+# Globals
+tokenizer = None
+model = None
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def load_artifacts() -> None:
-    """Load the model + vectorizer into memory. Called once at app startup."""
-    global _model, _vectorizer
+def load_artifacts():
+    global tokenizer, model
 
-    if not config.MODEL_PATH.exists() or not config.VECTORIZER_PATH.exists():
+    if not MODEL_DIR.exists():
         raise FileNotFoundError(
-            f"Model artifacts not found. Expected:\n"
-            f"  {config.MODEL_PATH}\n  {config.VECTORIZER_PATH}\n"
-            f"Run training first: python -m ml.train"
+            f"DistilBERT model folder not found:\n{MODEL_DIR}\n"
+            f"Make sure you trained/saved the model first."
         )
 
-    _model = joblib.load(config.MODEL_PATH)
-    _vectorizer = joblib.load(config.VECTORIZER_PATH)
+    tokenizer = DistilBertTokenizerFast.from_pretrained(MODEL_DIR)
+    model = DistilBertForSequenceClassification.from_pretrained(MODEL_DIR)
+    model.to(device)
+    model.eval()
 
 
-def predict(title: str, text: str) -> dict:
-    if _model is None or _vectorizer is None:
-        raise ModelNotLoadedError("Model is not loaded yet. Call load_artifacts() first.")
+def predict(title: str, text: str) -> Dict:
+    if model is None or tokenizer is None:
+        raise RuntimeError("Model artifacts are not loaded. Call load_artifacts() first.")
 
-    cleaned = preprocess_for_inference(title, text)
-    features = _vectorizer.transform([cleaned])
+    combined_text = f"{title} {text}".strip()
 
-    pred = int(_model.predict(features)[0])
+    inputs = tokenizer(
+        combined_text,
+        truncation=True,
+        padding=True,
+        max_length=512,
+        return_tensors="pt"
+    )
 
-    if hasattr(_model, "predict_proba"):
-        proba = _model.predict_proba(features)[0]
-        fake_probability, real_probability = float(proba[0]), float(proba[1])
-    else:
-        # Models without predict_proba (e.g. LinearSVC) -> use decision_function
-        # squashed through a sigmoid as an approximate confidence score.
-        import math
-        score = float(_model.decision_function(features)[0])
-        real_probability = 1 / (1 + math.exp(-score))
-        fake_probability = 1 - real_probability
+    inputs = {k: v.to(device) for k, v in inputs.items()}
 
-    label = "Real" if pred == 1 else "Fake"
-    confidence = real_probability if pred == 1 else fake_probability
+    with torch.no_grad():
+        outputs = model(**inputs)
+        probs = torch.softmax(outputs.logits, dim=1)[0]
+
+    # WELFake labels in your project:
+    # 0 = Real
+    # 1 = Fake
+    real_prob = float(probs[0].item())
+    fake_prob = float(probs[1].item())
+
+    pred = int(torch.argmax(probs).item())
+
+    label = "Fake" if pred == 1 else "Real"
+    confidence = fake_prob if pred == 1 else real_prob
 
     return {
         "label": label,
-        "is_fake": pred == 0,
+        "is_fake": pred == 1,
         "confidence": round(confidence, 4),
-        "fake_probability": round(fake_probability, 4),
-        "real_probability": round(real_probability, 4),
+        "fake_probability": round(fake_prob, 4),
+        "real_probability": round(real_prob, 4),
     }
